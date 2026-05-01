@@ -1,0 +1,224 @@
+# StyleGuru — AI Powered Outfit Recommender
+# CLAUDE.md — Read this before writing any code
+
+## What this app does
+StyleGuru helps Sri Lankan men build a digital wardrobe from photos of their
+own clothes. The AI (Claude API) then suggests complete outfit combinations
+from their actual wardrobe based on occasion and weather.
+
+## Tech Stack
+- Frontend: React Native + Expo (TypeScript)
+- Backend: Python + FastAPI (separate project: StyleGuru-Backend/)
+- Database: Supabase (PostgreSQL)
+- Photo storage: Cloudinary
+- Clothing recognition: Google Vision API (called from backend)
+- Outfit suggestions: Claude API / claude-sonnet-4-20250514 (called from backend)
+- Weather: OpenWeatherMap (called from frontend)
+- Navigation: expo-router (file-based routing)
+- State: Zustand (global) + useState (local)
+- HTTP: axios
+
+## Project Structure
+```
+StyleGuru/
+├── app/
+│   ├── _layout.tsx          Root layout
+│   ├── index.tsx            Splash / onboarding
+│   ├── (auth)/
+│   │   ├── _layout.tsx
+│   │   ├── login.tsx
+│   │   └── register.tsx
+│   └── (tabs)/
+│       ├── _layout.tsx      Tab bar (4 tabs)
+│       ├── index.tsx        Home — get outfit suggestions
+│       ├── wardrobe.tsx     Browse clothing items
+│       ├── add-item.tsx     Photograph new clothing
+│       └── profile.tsx      User settings
+├── components/
+│   ├── OccasionPicker.tsx
+│   ├── WeatherBadge.tsx
+│   ├── OutfitCard.tsx
+│   ├── ClothingItemCard.tsx
+│   ├── LoadingAI.tsx
+│   └── TagBadge.tsx
+├── lib/
+│   ├── supabase.ts          Supabase client
+│   ├── api.ts               Backend API calls
+│   └── weather.ts           OpenWeatherMap calls
+├── hooks/
+│   ├── useAuth.ts
+│   └── useWardrobe.ts
+├── constants/
+│   ├── theme.ts             ALWAYS import THEME from here
+│   └── occasions.ts         OCCASIONS array
+└── .env                     EXPO_PUBLIC_ variables only
+```
+
+## Coding Rules — Follow These Always
+
+### 1. NEVER hardcode colors, spacing, or font sizes
+```
+# WRONG:
+backgroundColor: "#7C3AED"
+fontSize: 16
+padding: 12
+
+# CORRECT:
+import { THEME } from "../constants/theme"
+backgroundColor: THEME.colors.primary
+fontSize: THEME.fontSize.md
+padding: THEME.spacing.md
+```
+
+### 2. File naming conventions
+- Screen files: lowercase with hyphens (add-item.tsx)
+- Component files: PascalCase (OutfitCard.tsx)
+- Helper files: camelCase (supabase.ts)
+
+### 3. TypeScript — always use types
+```
+# WRONG:
+const [items, setItems] = useState([])
+
+# CORRECT:
+interface WardrobeItem { id: string; photo_url: string; clothing_type: string }
+const [items, setItems] = useState<WardrobeItem[]>([])
+```
+
+### 4. Always handle loading and error states
+Every data fetch must have:
+- A loading state (show ActivityIndicator)
+- An error state (show friendly message, not a crash)
+- An empty state (show helpful message when no data)
+
+### 5. Supabase patterns
+```typescript
+# Always check for errors:
+const { data, error } = await supabase.from("table").select("*")
+if (error) throw new Error(error.message)
+
+# Always filter by user_id:
+.eq("user_id", user.id)
+```
+
+### 6. API calls always go through lib/api.ts
+Never call the backend URL directly from screens.
+Always add new functions to lib/api.ts and import them.
+
+### 7. Occasions list
+Always import from constants/occasions.ts:
+```
+import { OCCASIONS } from "../constants/occasions"
+```
+Never hardcode occasion strings like "casual" in components.
+
+## Supabase Database Schema
+
+### profiles
+- id (uuid, references auth.users)
+- email (text)
+- skin_tone (text: "fair" | "medium" | "tan" | "dark")
+- body_type (text: "slim" | "average" | "athletic" | "broad")
+- created_at (timestamp)
+
+### wardrobe_items
+- id (uuid, primary key)
+- user_id (uuid, references profiles.id)
+- photo_url (text, Cloudinary URL)
+- clothing_type (text: "shirt" | "trousers" | "shoes" | "jacket" | "shorts" | "dress" | "accessory")
+- colors (text[], array of hex codes like ["#1a2b3c"])
+- formality (text: "casual" | "smart-casual" | "formal")
+- pattern (text: "plain" | "striped" | "checked" | "printed")
+- season (text: "all" | "summer" | "winter")
+- tags (text[], extra tags)
+- created_at (timestamp)
+
+### outfit_suggestions
+- id (uuid)
+- user_id (uuid)
+- occasion (text)
+- item_ids (uuid[], IDs of wardrobe_items in this outfit)
+- feedback (text: "liked" | "disliked" | null)
+- weather_temp (integer)
+- created_at (timestamp)
+
+## Backend (StyleGuru-Backend) Structure
+```
+StyleGuru-Backend/
+├── services/
+│   ├── cloudinary_service.py  Upload photos
+│   ├── vision.py              Google Vision analysis
+│   └── outfits.py             Claude outfit suggestions
+├── main.py                    FastAPI server
+├── requirements.txt
+├── Procfile
+└── .env                       SECRET keys (never commit this)
+```
+
+## Backend API Endpoints
+- GET  /                  Health check
+- POST /analyze-item      Upload + analyze a clothing photo
+- POST /suggest-outfits   Get 3 outfit combinations from wardrobe
+
+## The 10 Occasions
+casual, office, party, wedding, outdoor, beach, date, gym, temple, interview
+
+Note: "temple" is for Sri Lankan cultural/religious events.
+For temple occasion: suggest modest clothing, light/muted colors (white, cream, pastel),
+avoid black/red/very bright colors, covered shoulders, no shorts.
+
+## Environment Variables
+
+### StyleGuru React Native (.env)
+```
+EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
+EXPO_PUBLIC_API_URL=https://styleguru-backend-xxxx.onrender.com
+EXPO_PUBLIC_WEATHER_KEY=your-openweathermap-key
+```
+
+### StyleGuru-Backend (.env) — SECRET, never commit
+```
+GOOGLE_VISION_KEY=your-google-vision-key
+ANTHROPIC_API_KEY=sk-ant-your-key
+CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+```
+
+## Common mistakes to avoid
+- Do NOT hardcode colors — always use THEME
+- Do NOT put API keys in React Native code — keys stay in backend .env
+- Do NOT skip loading states — every API call needs one
+- Do NOT use inline styles for repeated values — use THEME
+- Do NOT call the backend directly from screens — use lib/api.ts
+- Do NOT commit .env files to GitHub — they are in .gitignore
+- Do NOT use WidthType.PERCENTAGE in any tables — always DXA
+- Do NOT skip error handling — wrap every API call in try/catch
+
+## How outfit suggestions work
+1. Frontend fetches user's full wardrobe from Supabase
+2. Frontend calls POST /suggest-outfits with {wardrobe, occasion, weather}
+3. Backend (outfits.py) formats wardrobe as readable text list
+4. Backend sends the list + occasion + weather to Claude API
+5. Claude returns 3 outfit combinations as JSON with item_ids + explanation
+6. Frontend looks up each item_id in the wardrobe array
+7. Frontend shows the actual photos of those items together as an outfit card
+
+## How clothing analysis works
+1. User photographs a clothing item in add-item.tsx
+2. Frontend calls POST /analyze-item with the photo file
+3. Backend uploads photo to Cloudinary → gets permanent URL
+4. Backend sends URL to Google Vision API
+5. Google Vision returns labels (clothing type) + colors + properties
+6. Backend maps labels to: clothing_type, colors, formality, pattern
+7. Backend returns all of this + the Cloudinary URL to the frontend
+8. Frontend saves the full item to Supabase wardrobe_items table
+9. Item appears in the user's wardrobe grid immediately
+
+## Sri Lankan cultural context
+- Include "Temple / Poya" as a distinct occasion (not just "formal")
+- Colombo weather is 27-33°C year round — all suggestions assume tropical heat
+- Prefer light, breathable fabric suggestions in AI prompts
+- South Asian skin tones are underrepresented in global fashion datasets
+  — Claude's outfit suggestions should be color-aware for all skin tones
+- Sri Lankan weddings: white is acceptable (unlike some other Asian cultures)
+- Traditional occasions may involve sarong — treat as valid clothing item
