@@ -1,13 +1,12 @@
 # StyleGuru — AI Powered Outfit Recommender
-# CLAUDE.md — Read this before writing any code
 
 ## What this app does
 StyleGuru helps Sri Lankan men build a digital wardrobe from photos of their
 own clothes. The AI (Claude API) then suggests complete outfit combinations
-from their actual wardrobe based on occasion and weather.
+from their actual wardrobe based on occasion.
 
 ## Tech Stack
-- Frontend: React Native + Expo (TypeScript)
+- Frontend: React Native (TypeScript)
 - Backend: Python + FastAPI (separate project: StyleGuru-Backend/)
 - Database: Supabase (PostgreSQL)
 - Photo storage: Cloudinary
